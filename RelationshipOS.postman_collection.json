@@ -1,0 +1,202 @@
+{
+  "info": {
+    "_postman_id": "relationship-os-collection",
+    "name": "Relationship OS Backend",
+    "description": "Full API test suite for Relationship-OS backend with auto JWT handling.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "AUTH",
+      "item": [
+        {
+          "name": "Register Seller",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"tevin.rapp@gmail.com\",\"password\":\"Baseball1!\",\"name\":\"Tevin Seller\",\"role\":\"SELLER\",\"companyName\":\"Corebase Inc\"}"
+            }
+          }
+        },
+        {
+          "name": "Register Customer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"corebase504@gmail.com\",\"password\":\"Basketball1!\",\"name\":\"Customer 504\",\"role\":\"CUSTOMER\",\"companyName\":\"Customer LLC\"}"
+            }
+          }
+        },
+        {
+          "name": "Login Seller",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"token_seller\", json.token);",
+                  "console.log(\"Seller token saved.\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"tevin.rapp@gmail.com\",\"password\":\"Baseball1!\"}"
+            }
+          }
+        },
+        {
+          "name": "Login Customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.environment.set(\"token_customer\", json.token);",
+                  "console.log(\"Customer token saved.\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"corebase504@gmail.com\",\"password\":\"Basketball1!\"}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "SELLER ACTIONS",
+      "item": [
+        {
+          "name": "Create Quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_seller}}" }
+            ],
+            "url": "{{base_url}}/quotes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"customerId\":1,\"lines\":[{\"type\":\"SUBSCRIPTION_SERVICE\",\"name\":\"Monitoring\",\"unitPrice\":99.99,\"quantity\":1}],\"notes\":\"Monthly monitoring subscription\"}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "CUSTOMER ACTIONS",
+      "item": [
+        {
+          "name": "View My Quotes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_customer}}" }],
+            "url": "{{base_url}}/quotes/mine"
+          }
+        },
+        {
+          "name": "Update Quote Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_customer}}" }
+            ],
+            "url": "{{base_url}}/quotes/1/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"APPROVED\",\"comment\":\"Approved by customer\"}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "SUBSCRIPTIONS",
+      "item": [
+        {
+          "name": "My Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_customer}}" }],
+            "url": "{{base_url}}/subscriptions/mine"
+          }
+        }
+      ]
+    },
+    {
+      "name": "CHAT",
+      "item": [
+        {
+          "name": "Get Messages with Seller",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_customer}}" }],
+            "url": "{{base_url}}/chat/1"
+          }
+        },
+        {
+          "name": "Send Message to Seller",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_customer}}" }
+            ],
+            "url": "{{base_url}}/chat/1",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"content\":\"Hello from customer\"}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI ENDPOINTS",
+      "item": [
+        {
+          "name": "Quote Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_customer}}" }],
+            "url": "{{base_url}}/ai/quote-summary/1"
+          }
+        },
+        {
+          "name": "Subscription Insights",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_customer}}" }],
+            "url": "{{base_url}}/ai/insights/subscriptions"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:4000" },
+    { "key": "token_seller", "value": "" },
+    { "key": "token_customer", "value": "" }
+  ]
+}
