@@ -12,15 +12,14 @@ import type {
 } from "../types";
 
 export default function useAppController() {
-  // ---------- Auth0 SSO ----------
+  // ---- Auth0 (SSO) ----
   const {
     isAuthenticated,
     getAccessTokenSilently,
-    user: auth0User,
     isLoading: auth0Loading,
   } = useAuth0();
 
-  // ---------- local auth state ----------
+  // auth
   const [email, setEmail] = useState("tevin.rapp@gmail.com");
   const [password, setPassword] = useState("Baseball1!");
   const [role, setRole] = useState<Role>("SELLER");
@@ -65,45 +64,66 @@ export default function useAppController() {
   const chatListRef = useRef<HTMLDivElement | null>(null);
 
   const isSeller = () => user?.role === "SELLER";
+  const isAcceptInviteRoute = () => window.location.pathname === "/accept-invite";
 
   // ---------- effects ----------
 
-  // restore session from localStorage
+  // restore session (our own JWT / user)
   useEffect(() => {
+    // If we are on the accept-invite page, do NOT restore or SSO-sync here.
+    // AcceptInvite.tsx controls the session creation + redirect.
+    if (isAcceptInviteRoute()) return;
+
     const savedToken = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
-    if (savedToken && savedUser) {
-      const parsedUser: User = JSON.parse(savedUser);
+
+    if (savedToken) {
       setAuthToken(savedToken);
-      setUser(parsedUser);
-      loadAllData(parsedUser);
+    }
+
+    if (savedToken && savedUser) {
+      try {
+        const parsedUser: User = JSON.parse(savedUser);
+        setUser(parsedUser);
+        loadAllData(parsedUser);
+      } catch {
+        // bad localStorage state — clear it
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        setAuthToken(null);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 🔁 When Auth0 says we're logged in, call backend /auth/sso once
+  // 🔐 When Auth0 says "this browser is authenticated", sync it with backend
   useEffect(() => {
-    // only run if Auth0 session exists AND we don't already have app user
-    if (!isAuthenticated || user) return;
+    async function syncSsoSession() {
+      // ✅ CRITICAL: AcceptInvite sets this flag so Auth0 sync can't clobber invite login
+      if (sessionStorage.getItem("skip_sso_sync") === "1") return;
 
-    let cancelled = false;
+      // Never SSO-sync while accepting invites (extra safety)
+      if (isAcceptInviteRoute()) return;
 
-    const runSsoLogin = async () => {
+      // If user already logged in with Relationship OS, do nothing
+      if (user) return;
+
+      // If we already have an app token in storage, do nothing (avoid SSO clobber)
+      const savedToken = localStorage.getItem("token");
+      const savedUser = localStorage.getItem("user");
+      if (savedToken && savedUser) return;
+
+      // Wait for Auth0 to be authenticated
+      if (!isAuthenticated) return;
+
       try {
         setLoading(true);
         setError(null);
 
-        const audience = import.meta.env.VITE_AUTH0_AUDIENCE as
-          | string
-          | undefined;
+        // Get Auth0 access token for our API
+        const accessToken = await getAccessTokenSilently();
 
-        // Correct type for getAccessTokenSilently options
-        const accessToken = await getAccessTokenSilently(
-          audience
-            ? { authorizationParams: { audience } }
-            : undefined
-        );
-
+        // Exchange Auth0 token for Relationship OS user + JWT
         const res = await api.post(
           "/auth/sso",
           {},
@@ -114,44 +134,32 @@ export default function useAppController() {
           }
         );
 
-        if (cancelled) return;
-
-        const { token, user: appUser } = res.data as {
+        const { token, user: backendUser } = res.data as {
           token: string;
           user: User;
         };
 
         setAuthToken(token);
-        setUser(appUser);
-        localStorage.setItem("user", JSON.stringify(appUser));
+        setUser(backendUser);
+        localStorage.setItem("user", JSON.stringify(backendUser));
         localStorage.setItem("token", token);
 
-        // optional: sync login form email to SSO email
-        if (auth0User?.email) {
-          setEmail(auth0User.email);
-        }
-
-        await loadAllData(appUser);
+        await loadAllData(backendUser);
         setActiveTab("dashboard");
       } catch (err: any) {
-        console.error("SSO login failed:", err);
-        if (!cancelled) {
-          setError(
-            err?.response?.data?.error ||
-              "Single Sign-On failed. You may not have a Relationship OS account linked to this identity."
-          );
-        }
+        console.error("SSO sync failed:", err);
+        setError(
+          err?.response?.data?.error ||
+            "Single Sign-On failed. Try again or use email/password."
+        );
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
-    };
+    }
 
-    runSsoLogin();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, getAccessTokenSilently, auth0User, user]);
+    syncSsoSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user]);
 
   // unread count
   useEffect(() => {
@@ -209,7 +217,6 @@ export default function useAppController() {
   async function loadAllData(currentUser: User) {
     try {
       setLoading(true);
-      // don't clear banners on refresh
       setChatMessages(null);
       setChatPartnerId(null);
 
@@ -323,7 +330,6 @@ export default function useAppController() {
     e.preventDefault();
     if (!user || user.role !== "SELLER") return;
 
-    // use banner for quote UX, don't touch global error/success
     setQuoteBanner(null);
 
     if (!quoteCustomerId) {
@@ -437,8 +443,7 @@ export default function useAppController() {
       console.error(err);
       setQuoteBanner({
         kind: "error",
-        message:
-          err?.response?.data?.error || "Failed to update quote status.",
+        message: err?.response?.data?.error || "Failed to update quote status.",
         context: "customer",
         quoteNumber: selectedQuoteForCustomer.quoteNumber,
       });
@@ -464,8 +469,7 @@ export default function useAppController() {
     if (user.role === "CUSTOMER") {
       const fromMessages =
         dashboardData?.recentMessages?.[0]?.sellerId ?? null;
-      const fromQuotes =
-        dashboardData?.recentQuotes?.[0]?.sellerId ?? null;
+      const fromQuotes = dashboardData?.recentQuotes?.[0]?.sellerId ?? null;
 
       targetId = fromMessages || fromQuotes || chatPartnerId || null;
 

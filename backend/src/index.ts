@@ -14,6 +14,7 @@ import paymentRoutes from "./routes/payments";
 import aiRoutes from "./routes/ai";
 import sellerRoutes from "./routes/seller";
 import customerRoutes from "./routes/customer";
+import inviteRoutes from "./routes/invites";
 
 const app = express();
 
@@ -21,7 +22,7 @@ app.use(cors());
 app.use(express.json());
 
 // Health check
-app.get("/", (_, res) => {
+app.get("/", (_req, res) => {
   return res.json({ ok: true, message: "Relationship OS backend running" });
 });
 
@@ -33,7 +34,8 @@ app.use("/chat", chatRoutes);
 app.use("/payments", paymentRoutes);
 app.use("/ai", aiRoutes);
 app.use("/seller", sellerRoutes);
-app.use("/customer", customerRoutes); 
+app.use("/customer", customerRoutes);
+app.use("/invites", inviteRoutes);
 
 // Start server
 app.listen(PORT, () => {

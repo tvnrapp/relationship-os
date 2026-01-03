@@ -1,5 +1,6 @@
 // frontend/src/App.tsx
 import { useAuth0 } from "@auth0/auth0-react";
+import { Routes, Route } from "react-router-dom";
 import useAppController from "./hooks/useAppController";
 
 import NavButton from "./components/layout/NavButton";
@@ -14,47 +15,56 @@ import CustomersTab from "./features/customers/CustomersTab";
 
 import { secondaryButtonStyle } from "./styles";
 
+import AcceptInvite from "./pages/AcceptInvite";
+
 function App() {
   const c = useAppController();
   const { logout } = useAuth0();
 
   // 🔐 full logout: app state + Auth0 SSO session
   const handleFullLogout = () => {
-    // clear Relationship OS session
     c.handleLogout();
-    // clear Auth0 session so the SSO effect doesn’t auto-login again
     logout({
       logoutParams: { returnTo: window.location.origin },
     });
   };
 
-  // ---- NOT LOGGED IN: show full-screen login (with SSO button) ----
+  // ---- NOT LOGGED IN ----
+  // Allow invite acceptance route to work BEFORE login
   if (!c.user) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background:
-            "radial-gradient(circle at top, #020617 0, #000000 50%, #020617 100%)",
-          fontFamily:
-            "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
-        }}
-      >
-        <LoginForm
-          role={c.role}
-          email={c.email}
-          password={c.password}
-          error={c.error}
-          loading={c.loading}
-          onRoleChange={c.handleRoleChange}
-          onEmailChange={c.setEmail}
-          onPasswordChange={c.setPassword}
-          onSubmit={c.handleLogin}
+      <Routes>
+        <Route path="/accept-invite" element={<AcceptInvite />} />
+        <Route
+          path="*"
+          element={
+            <div
+              style={{
+                minHeight: "100vh",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background:
+                  "radial-gradient(circle at top, #020617 0, #000000 50%, #020617 100%)",
+                fontFamily:
+                  "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+              }}
+            >
+              <LoginForm
+                role={c.role}
+                email={c.email}
+                password={c.password}
+                error={c.error}
+                loading={c.loading}
+                onRoleChange={c.handleRoleChange}
+                onEmailChange={c.setEmail}
+                onPasswordChange={c.setPassword}
+                onSubmit={c.handleLogin}
+              />
+            </div>
+          }
         />
-      </div>
+      </Routes>
     );
   }
 
@@ -235,8 +245,7 @@ function App() {
           flex: 1,
           padding: "1.5rem",
           overflow: "auto",
-          background:
-            "radial-gradient(circle at top, #1f2937 0, #020617 55%)",
+          background: "radial-gradient(circle at top, #1f2937 0, #020617 55%)",
           position: "relative",
         }}
       >
@@ -250,20 +259,10 @@ function App() {
           }}
         >
           <div>
-            <h1
-              style={{
-                fontSize: "1.5rem",
-                marginBottom: "0.15rem",
-              }}
-            >
+            <h1 style={{ fontSize: "1.5rem", marginBottom: "0.15rem" }}>
               {c.activeTab.charAt(0).toUpperCase() + c.activeTab.slice(1)}
             </h1>
-            <div
-              style={{
-                fontSize: "0.8rem",
-                color: "#9ca3af",
-              }}
-            >
+            <div style={{ fontSize: "0.8rem", color: "#9ca3af" }}>
               {c.user.role === "SELLER"
                 ? "Manage your customers, quotes, and subscriptions."
                 : "View your subscriptions, quotes, and messages."}
@@ -279,7 +278,6 @@ function App() {
           </button>
         </div>
 
-        {/* GLOBAL ERROR ONLY (we removed success completely) */}
         {c.error && (
           <div
             style={{
@@ -295,7 +293,6 @@ function App() {
           </div>
         )}
 
-        {/* CONTENT */}
         <div>{renderMainContent()}</div>
 
         {c.dashboardData && (
@@ -322,7 +319,6 @@ function App() {
           </details>
         )}
 
-        {/* CHAT WIDGET */}
         <ChatWidget
           user={c.user}
           isChatOpen={c.isChatOpen}

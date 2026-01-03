@@ -4,26 +4,30 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // url is read from your prisma.config.ts / env
 }
 
 model User {
-  id             Int       @id @default(autoincrement())
-  email          String    @unique
-  passwordHash   String
-  name           String
-  role           Role      @default(CUSTOMER)
-  companyName    String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String?
+  auth0Sub     String?  @unique
+  name         String
+  role         Role     @default(CUSTOMER)
+  companyName  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  quotesCreated  Quote[]       @relation("SellerQuotes")
-  quotesReceived Quote[]       @relation("CustomerQuotes")
+  invitesCreated Invite[] @relation("InvitesCreatedByUser")
+
+  quotesCreated  Quote[]        @relation("SellerQuotes")
+  quotesReceived Quote[]        @relation("CustomerQuotes")
   subscriptions  Subscription[]
 
-  messagesSent   ChatMessage[] @relation("UserMessages")
-  customerChats  ChatMessage[] @relation("CustomerChat")
-  sellerChats    ChatMessage[] @relation("SellerChat")
-  invoices       Invoice[]
+  messagesSent  ChatMessage[] @relation("UserMessages")
+  customerChats ChatMessage[] @relation("CustomerChat")
+  sellerChats   ChatMessage[] @relation("SellerChat")
+  invoices      Invoice[]
 }
 
 enum Role {
@@ -33,21 +37,21 @@ enum Role {
 }
 
 model Quote {
-  id              Int              @id @default(autoincrement())
-  quoteNumber     String           @unique
-  customer        User             @relation("CustomerQuotes", fields: [customerId], references: [id])
-  customerId      Int
-  seller          User             @relation("SellerQuotes", fields: [sellerId], references: [id])
-  sellerId        Int
-  status          QuoteStatus      @default(DRAFT)
-  totalAmount     Float
-  currency        String           @default("USD")
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  notes           String?
+  id          Int         @id @default(autoincrement())
+  quoteNumber String      @unique
+  customer    User        @relation("CustomerQuotes", fields: [customerId], references: [id])
+  customerId  Int
+  seller      User        @relation("SellerQuotes", fields: [sellerId], references: [id])
+  sellerId    Int
+  status      QuoteStatus @default(DRAFT)
+  totalAmount Float
+  currency    String      @default("USD")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  notes       String?
 
-  lines           QuoteLine[]
-  subscriptions   Subscription[]
+  lines         QuoteLine[]
+  subscriptions Subscription[]
 }
 
 enum QuoteStatus {
@@ -59,16 +63,16 @@ enum QuoteStatus {
 }
 
 model QuoteLine {
-  id            Int           @id @default(autoincrement())
-  quote         Quote         @relation(fields: [quoteId], references: [id])
-  quoteId       Int
-  type          LineType
-  name          String
-  description   String?
-  unitPrice     Float
-  quantity      Int           @default(1)
-  billingCycle  BillingCycle?
-  metadataJson  String?
+  id           Int           @id @default(autoincrement())
+  quote        Quote         @relation(fields: [quoteId], references: [id])
+  quoteId      Int
+  type         LineType
+  name         String
+  description  String?
+  unitPrice    Float
+  quantity     Int           @default(1)
+  billingCycle BillingCycle?
+  metadataJson String?
 }
 
 enum LineType {
@@ -87,21 +91,21 @@ enum BillingCycle {
 }
 
 model Subscription {
-  id             Int                @id @default(autoincrement())
-  customer       User               @relation(fields: [customerId], references: [id])
-  customerId     Int
-  quote          Quote?             @relation(fields: [quoteId], references: [id])
-  quoteId        Int?
-  name           String
-  status         SubscriptionStatus @default(ACTIVE)
-  startDate      DateTime
-  endDate        DateTime?
-  autoRenew      Boolean            @default(true)
-  renewalDate    DateTime?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  id          Int                @id @default(autoincrement())
+  customer    User               @relation(fields: [customerId], references: [id])
+  customerId  Int
+  quote       Quote?             @relation(fields: [quoteId], references: [id])
+  quoteId     Int?
+  name        String
+  status      SubscriptionStatus @default(ACTIVE)
+  startDate   DateTime
+  endDate     DateTime?
+  autoRenew   Boolean            @default(true)
+  renewalDate DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
-  entitlements   Entitlement[]
+  entitlements Entitlement[]
 }
 
 enum SubscriptionStatus {
@@ -112,37 +116,54 @@ enum SubscriptionStatus {
 }
 
 model Entitlement {
-  id             Int      @id @default(autoincrement())
+  id             Int          @id @default(autoincrement())
   subscription   Subscription @relation(fields: [subscriptionId], references: [id])
   subscriptionId Int
   type           LineType
   name           String
   capacity       Int?
   metadataJson   String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 model ChatMessage {
-  id         Int       @id @default(autoincrement())
-  sender     User      @relation("UserMessages", fields: [senderId], references: [id])
+  id         Int      @id @default(autoincrement())
+  sender     User     @relation("UserMessages", fields: [senderId], references: [id])
   senderId   Int
-  customer   User      @relation("CustomerChat", fields: [customerId], references: [id])
+  customer   User     @relation("CustomerChat", fields: [customerId], references: [id])
   customerId Int
-  seller     User      @relation("SellerChat", fields: [sellerId], references: [id])
+  seller     User     @relation("SellerChat", fields: [sellerId], references: [id])
   sellerId   Int
   content    String
-  createdAt  DateTime  @default(now())
+  createdAt  DateTime @default(now())
 }
 
 model Invoice {
-  id           Int       @id @default(autoincrement())
-  customer     User      @relation(fields: [customerId], references: [id])
-  customerId   Int
-  amount       Float
-  currency     String    @default("USD")
-  dueDate      DateTime
-  paidAt       DateTime?
-  stripeId     String?
-  createdAt    DateTime  @default(now())
+  id         Int       @id @default(autoincrement())
+  customer   User      @relation(fields: [customerId], references: [id])
+  customerId Int
+  amount     Float
+  currency   String    @default("USD")
+  dueDate    DateTime
+  paidAt     DateTime?
+  stripeId   String?
+  createdAt  DateTime  @default(now())
+}
+
+model Invite {
+  id          Int       @id @default(autoincrement())
+  email       String
+  role        Role
+  tokenHash   String    @unique
+  companyName String?
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  createdByUserId Int
+  createdByUser   User @relation("InvitesCreatedByUser", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([createdByUserId])
 }

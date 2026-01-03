@@ -1,7 +1,9 @@
-// src/main.tsx
+// frontend/src/main.tsx
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Auth0Provider } from "@auth0/auth0-react";
+import { BrowserRouter } from "react-router-dom";
+
 import App from "./App";
 import "./index.css";
 
@@ -11,12 +13,8 @@ const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID as string | undefined;
 const audience = import.meta.env.VITE_AUTH0_AUDIENCE as string | undefined;
 
 // Debug warnings for missing env vars
-if (!domain) {
-  console.warn("⚠️ Missing VITE_AUTH0_DOMAIN in .env");
-}
-if (!clientId) {
-  console.warn("⚠️ Missing VITE_AUTH0_CLIENT_ID in .env");
-}
+if (!domain) console.warn("⚠️ Missing VITE_AUTH0_DOMAIN in .env");
+if (!clientId) console.warn("⚠️ Missing VITE_AUTH0_CLIENT_ID in .env");
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
@@ -24,18 +22,18 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <Auth0Provider
         domain={domain}
         clientId={clientId}
-        cacheLocation="localstorage" // keeps user logged in long-term
+        cacheLocation="localstorage"
         authorizationParams={{
           redirect_uri: window.location.origin,
-          // audience + scope live here now, not in getAccessTokenSilently()
           ...(audience ? { audience } : {}),
           scope: "openid profile email",
         }}
       >
-        <App />
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
       </Auth0Provider>
     ) : (
-      // Fallback so app doesn't crash if env vars are missing
       <div
         style={{
           fontFamily:
